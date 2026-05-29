@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: b159510cc71f24b47b9f41b84b347656
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 2197
+  packageName: Modern Sports Car 2
+  packageVersion: 1.0
+  assetPath: Assets/Car2/Materials/Car2Texture.mat
+  uploadId: 25667
