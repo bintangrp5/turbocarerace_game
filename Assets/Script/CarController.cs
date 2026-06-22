@@ -9,8 +9,12 @@ public class CarController : MonoBehaviour
     private float currentSteerAngle, currentbreakForce;
     private bool isBreaking;
 
+    private float mobileSteer = 0f;
+    private float mobileThrottle = 0f;
+    private bool mobileBrake = false;
     private CarStatus carStatus;
     private Rigidbody rb;
+    public bool canDrive = true;
 
     //settings
     [Header("Drivetrain Settings")]
@@ -54,9 +58,12 @@ public class CarController : MonoBehaviour
 
     private void GetInput()
     {
-        horizontalInput = 0f;
-        verticalInput = 0f;
-        isBreaking = false;
+        horizontalInput = mobileSteer;
+        verticalInput = mobileThrottle;
+        isBreaking = mobileBrake;
+
+        if (!canDrive)
+            return;
 
         if (carStatus != null && carStatus.IsDead)
         {
@@ -182,5 +189,45 @@ public class CarController : MonoBehaviour
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
         }
+    }
+
+    // Steering
+    public void TurnLeftDown()
+    {
+        Debug.Log("LEFT BUTTON");
+        mobileSteer = -1f;
+    }
+
+    public void TurnRightDown()
+    {
+        Debug.Log("RIGHT BUTTON");
+        mobileSteer = 1f;
+    }
+
+    public void TurnUp()
+    {
+        mobileSteer = 0f;
+    }
+
+    // Gas
+    public void GasDown()
+    {
+        mobileThrottle = 1f;
+    }
+
+    public void GasUp()
+    {
+        mobileThrottle = 0f;
+    }
+
+    // Brake
+    public void BrakeDown()
+    {
+        mobileBrake = true;
+    }
+
+    public void BrakeUp()
+    {
+        mobileBrake = false;
     }
 }

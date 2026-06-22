@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.InputSystem;
 using TMPro;
 
 public enum TimerMode
@@ -11,6 +12,7 @@ public enum TimerMode
 
 public class GameManager : MonoBehaviour
 {
+    public GameObject panelPause;
     public static GameManager Instance { get; private set; }
 
     private float timeElapsed = 0f;
@@ -62,9 +64,15 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
+        Time.timeScale = 1f;
+
+        if (panelPause != null)
+        {
+            panelPause.SetActive(false);
+        }
         timeElapsed = 0f;
         timeRemaining = initialTimeLimit;
-        isGameActive = true;
+        isGameActive = false;
         currentLap = 1;
 
         if (timerText != null)
@@ -84,10 +92,30 @@ public class GameManager : MonoBehaviour
         UpdateUIHUD();
     }
 
+    public void StartRace()
+    {
+         Debug.Log("START RACE DIPANGGIL");
+         isGameActive = true;
+    }
+    
+
     private void Update()
     {
+        // Menggunakan Input System Baru untuk mendeteksi tombol P di Keyboard
+        if (Keyboard.current != null && Keyboard.current.pKey.wasPressedThisFrame)
+        {
+            if (panelPause != null && panelPause.activeSelf)
+            {
+                ResumeGame();
+            }
+            else
+            {
+                PauseGame();
+            }
+        }
+        
         if (!isGameActive) return;
-
+        
         // Hitung waktu bertambah (stopwatch / count up)
         timeElapsed += Time.deltaTime;
 
@@ -97,11 +125,12 @@ public class GameManager : MonoBehaviour
             if (timeRemaining <= 0f)
             {
                 timeRemaining = 0f;
-                UpdateUIHUD(); // Update HUD to show 0:00
+                UpdateUIHUD(); 
                 TriggerGameOver("Waktu Habis!");
                 return;
             }
         }
+
 
         UpdateUIHUD();
     }
@@ -193,11 +222,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    public void RestartLevel()
-    {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-    }
-
+    
     private void UpdateUIHUD()
     {
         // Update Slider HP (Kesempatan Menabrak tersisa)
@@ -253,5 +278,43 @@ public class GameManager : MonoBehaviour
                 lapText.gameObject.SetActive(false);
             }
         }
+    }
+
+   public void PauseGame()
+    {
+        Time.timeScale = 0f;
+
+        if(panelPause != null)
+        {
+            panelPause.SetActive(true);
+        }
+
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+    }
+
+    public void ResumeGame()
+    {
+        Time.timeScale = 1f;
+        panelPause.SetActive(false);
+
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
+    }
+
+    public void RestartRace()
+    {
+        Debug.Log("RESTART RACE");
+
+        Time.timeScale = 1f;
+
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    public void QuitRace()
+    {
+        Time.timeScale = 1f;
+
+        SceneManager.LoadScene("Main Menu");
     }
 }
