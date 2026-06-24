@@ -1580,7 +1580,7 @@ GameObject:
   - component: {fileID: 461546106}
   - component: {fileID: 461546105}
   m_Layer: 5
-  m_Name: level12
+  m_Name: level2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1843,6 +1843,7 @@ GameObject:
   - component: {fileID: 640652676}
   - component: {fileID: 640652678}
   - component: {fileID: 640652677}
+  - component: {fileID: 640652679}
   m_Layer: 5
   m_Name: Panel_Play
   m_TagString: Untagged
@@ -1908,6 +1909,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 640652675}
   m_CullTransparentMesh: 1
+--- !u!114 &640652679
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 640652675}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a4c81302505f424c8d5d8cbe58b6003, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LevelMenu
+  level2Button: {fileID: 441414853}
+  level3Button: {fileID: 0}
 --- !u!1 &660638088
 GameObject:
   m_ObjectHideFlags: 0
@@ -4168,7 +4183,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'Level 1
+  m_text: 'Level 21
 
 '
   m_isRightToLeft: 0

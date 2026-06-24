@@ -1,5 +1,12 @@
 fileFormatVersion: 2
 guid: 32b7c4a81e693fe429add3f6560894fb
+AssetOrigin:
+  serializedVersion: 1
+  productId: 2197
+  packageName: Modern Sports Car 2
+  packageVersion: 1.0
+  assetPath: Assets/Car2/Textures/Car2Texture.png
+  uploadId: 25667
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -34,8 +41,8 @@ TextureImporter:
   maxTextureSize: 1024
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
-    aniso: 1
+    filterMode: 2
+    aniso: 8
     mipBias: 0
     wrapU: 0
     wrapV: 0
@@ -128,10 +135,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 2197
-  packageName: Modern Sports Car 2
-  packageVersion: 1.0
-  assetPath: Assets/Car2/Textures/Car2Texture.png
-  uploadId: 25667

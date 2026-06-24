@@ -25,6 +25,10 @@ public class CarController : MonoBehaviour
     [SerializeField] private Vector3 centerOfMassOffset = new Vector3(0f, -0.8f, 0f); // Pusat massa diturunkan agar sangat stabil
     [SerializeField] private float downforce = 50f; // Gaya tekan ke bawah ekstra agar ban menempel di jalan
 
+    [Header("Nitro Settings")]
+    [SerializeField] private float nitroMultiplier = 2f;
+    private bool isNitroActive = false;
+
     //wheel coliders
     [SerializeField] private WheelCollider frontLeftWheelCollider, frontRightWheelCollider;
     [SerializeField] private WheelCollider rearLeftWheelCollider, rearRightWheelCollider;
@@ -108,7 +112,14 @@ public class CarController : MonoBehaviour
 
     private void HandleMotor()
     {
-        float motorTorqueValue = verticalInput * motorForce;
+        float currentMotorForce = motorForce;
+
+        if (isNitroActive)
+        {
+            currentMotorForce *= nitroMultiplier;
+        }
+
+        float motorTorqueValue = verticalInput * currentMotorForce;
         
         // Reset torsi untuk semua roda terlebih dahulu
         frontLeftWheelCollider.motorTorque = 0f;
@@ -229,5 +240,17 @@ public class CarController : MonoBehaviour
     public void BrakeUp()
     {
         mobileBrake = false;
+    }
+
+    public void NitroDown()
+    {
+        Debug.Log("NITRO ON");
+        isNitroActive = true;
+    }
+
+    public void NitroUp()
+    {
+        Debug.Log("NITRO OFF");
+        isNitroActive = false;
     }
 }

@@ -89,6 +89,51 @@ public class GameManager : MonoBehaviour
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
         if (victoryPanel != null) victoryPanel.SetActive(false);
 
+        // Bind Pause Button
+        GameObject pauseBtnObj = GameObject.Find("Pause");
+        if (pauseBtnObj == null)
+        {
+            pauseBtnObj = GameObject.Find("Canvas/UI_HUD/Pause");
+        }
+        if (pauseBtnObj != null)
+        {
+            Button pauseButton = pauseBtnObj.GetComponent<Button>();
+            if (pauseButton != null)
+            {
+                pauseButton.onClick.RemoveAllListeners();
+                pauseButton.onClick.AddListener(PauseGame);
+                Debug.Log("[GameManager] Bound Pause button click event programmatically.");
+            }
+        }
+
+        // Bind panelPause buttons
+        if (panelPause != null)
+        {
+            Button resumeButton = panelPause.transform.Find("btn_mainlagi")?.GetComponent<Button>();
+            if (resumeButton != null)
+            {
+                resumeButton.onClick.RemoveAllListeners();
+                resumeButton.onClick.AddListener(ResumeGame);
+                Debug.Log("[GameManager] Bound Resume button (btn_mainlagi) programmatically.");
+            }
+
+            Button restartButton = panelPause.transform.Find("btn_ulangi")?.GetComponent<Button>();
+            if (restartButton != null)
+            {
+                restartButton.onClick.RemoveAllListeners();
+                restartButton.onClick.AddListener(RestartRace);
+                Debug.Log("[GameManager] Bound Restart button (btn_ulangi) programmatically.");
+            }
+
+            Button quitButton = panelPause.transform.Find("btn_berhentibalapan")?.GetComponent<Button>();
+            if (quitButton != null)
+            {
+                quitButton.onClick.RemoveAllListeners();
+                quitButton.onClick.AddListener(QuitRace);
+                Debug.Log("[GameManager] Bound Quit button (btn_berhentibalapan) programmatically.");
+            }
+        }
+
         UpdateUIHUD();
     }
 
@@ -203,11 +248,30 @@ public class GameManager : MonoBehaviour
         }
     }
 
+
     public void TriggerVictory()
     {
         if (!isGameActive) return;
         isGameActive = false;
-        Debug.Log($"[GameManager] VICTORY! Semua checkpoint terlewati! Total waktu: {timeElapsed:F1}s");
+
+        string sceneName = SceneManager.GetActiveScene().name;
+
+        // 🔓 UNLOCK SYSTEM BERDASARKAN LEVEL
+        if (sceneName == "Level_1")
+        {
+            PlayerPrefs.SetInt("Level1Done", 1);
+            PlayerPrefs.SetInt("Level2Unlocked", 1);
+        }
+        else if (sceneName == "Level_2")
+        {
+            PlayerPrefs.SetInt("Level2Done", 1);
+            PlayerPrefs.SetInt("Level3Unlocked", 1);
+        }
+        // nanti tinggal lanjut kalau ada level berikutnya
+
+        PlayerPrefs.Save();
+
+        Debug.Log($"[GameManager] VICTORY di {sceneName}! Total waktu: {timeElapsed:F1}s");
 
         if (victoryPanel != null)
         {
@@ -222,7 +286,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    
+
     private void UpdateUIHUD()
     {
         // Update Slider HP (Kesempatan Menabrak tersisa)
@@ -281,7 +345,8 @@ public class GameManager : MonoBehaviour
     }
 
    public void PauseGame()
-    {
+    {   
+        Debug.Log("PAUSE DIPANGGIL");
         Time.timeScale = 0f;
 
         if(panelPause != null)
@@ -298,8 +363,8 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 1f;
         panelPause.SetActive(false);
 
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
     }
 
     public void RestartRace()
