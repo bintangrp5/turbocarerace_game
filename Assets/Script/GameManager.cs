@@ -12,6 +12,7 @@ public enum TimerMode
 
 public class GameManager : MonoBehaviour
 {
+    public CarController car;
     public GameObject panelPause;
     public static GameManager Instance { get; private set; }
 
@@ -137,12 +138,17 @@ public class GameManager : MonoBehaviour
         UpdateUIHUD();
     }
 
-    public void StartRace()
+        public void StartRace()
     {
-         Debug.Log("START RACE DIPANGGIL");
-         isGameActive = true;
+        Debug.Log("START RACE DIPANGGIL");
+        isGameActive = true;
+
+        if (car != null)
+        {
+            car.StartAutoDrive();
+        }
     }
-    
+            
 
     private void Update()
     {

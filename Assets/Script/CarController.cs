@@ -8,6 +8,8 @@ public class CarController : MonoBehaviour
     private float horizontalInput, verticalInput;
     private float currentSteerAngle, currentbreakForce;
     private bool isBreaking;
+    public bool isAutoDrive = false;
+    public float autoSpeed = 10f;
 
     private float mobileSteer = 0f;
     private float mobileThrottle = 0f;
@@ -20,6 +22,10 @@ public class CarController : MonoBehaviour
     [Header("Drivetrain Settings")]
     [SerializeField] private DrivetrainType drivetrain = DrivetrainType.RWD; // Default RWD agar lebih mudah dikendalikan
     [SerializeField] private float motorForce, breakForce, maxSteerAngle;
+
+    [Header("Auto Start")]
+    [SerializeField] private float autoStartSpeed = 12f; // ≈ 43 km/h
+    private bool autoStart = false;
 
     [Header("Physics & Stability")]
     [SerializeField] private Vector3 centerOfMassOffset = new Vector3(0f, -0.8f, 0f); // Pusat massa diturunkan agar sangat stabil
@@ -110,6 +116,12 @@ public class CarController : MonoBehaviour
         verticalInput = Mathf.Clamp(verticalInput, -1f, 1f);
     }
 
+    public void StartAutoDrive()
+    {
+        autoStart = true;
+        Debug.Log("AUTO DRIVE AKTIF!");
+    }
+
     private void HandleMotor()
     {
         float currentMotorForce = motorForce;
@@ -119,8 +131,17 @@ public class CarController : MonoBehaviour
             currentMotorForce *= nitroMultiplier;
         }
 
-        float motorTorqueValue = verticalInput * currentMotorForce;
-        
+        float input = verticalInput;
+
+        // Kalau auto start aktif → override input
+        if (autoStart)
+        {
+            input = 0.5f;
+            Debug.Log("AutoStart: " + autoStart + " | Input: " + input);
+        }
+
+        float motorTorqueValue = input * currentMotorForce;
+
         // Reset torsi untuk semua roda terlebih dahulu
         frontLeftWheelCollider.motorTorque = 0f;
         frontRightWheelCollider.motorTorque = 0f;
