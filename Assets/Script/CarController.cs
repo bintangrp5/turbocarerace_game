@@ -31,6 +31,9 @@ public class CarController : MonoBehaviour
     [SerializeField] private Vector3 centerOfMassOffset = new Vector3(0f, -0.8f, 0f); // Pusat massa diturunkan agar sangat stabil
     [SerializeField] private float downforce = 50f; // Gaya tekan ke bawah ekstra agar ban menempel di jalan
 
+    [Header("UI Control")]
+    public GameObject pedalGas;
+
     [Header("Nitro Settings")]
     [SerializeField] private float nitroMultiplier = 2f;
     private bool isNitroActive = false;
@@ -43,13 +46,38 @@ public class CarController : MonoBehaviour
     [SerializeField] private Transform frontLeftWheelTransform, frontRightWheelTransform;
     [SerializeField] private Transform rearLeftWheelTransform, rearRightWheelTransform;
 
-    private void Start()
+   private void Start()
     {
         carStatus = GetComponent<CarStatus>();
         rb = GetComponent<Rigidbody>();
+
         if (rb != null)
         {
             rb.centerOfMass = centerOfMassOffset;
+        }
+
+        // 🔥 CUKUP INI SAJA
+        ResetInput();
+
+        int kontrol = PlayerPrefs.GetInt("kontrol", 0);
+
+        if (kontrol == 0)
+        {
+            Debug.Log("Mode Manual");
+            isAutoDrive = false;
+
+            autoStart = false;
+
+            if (pedalGas != null)
+                pedalGas.SetActive(true);
+        }
+        else
+        {
+            Debug.Log("Mode Otomatis");
+            isAutoDrive = true;
+
+            if (pedalGas != null)
+                pedalGas.SetActive(false);
         }
     }
 
@@ -68,6 +96,16 @@ public class CarController : MonoBehaviour
 
     private void GetInput()
     {
+        // 🔥 AUTO MODE
+        if (isAutoDrive)
+        {
+            horizontalInput = mobileSteer;
+            verticalInput = 0f;
+            isBreaking = mobileBrake;
+            return;
+        }
+
+        // 🔥 MANUAL MODE (UTAMA DARI MOBILE)
         horizontalInput = mobileSteer;
         verticalInput = mobileThrottle;
         isBreaking = mobileBrake;
@@ -81,17 +119,18 @@ public class CarController : MonoBehaviour
             return;
         }
 
+        // 🔥 KEYBOARD (TIDAK PAKAI += BIAR GA NIMPA)
         if (Keyboard.current != null)
         {
             if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)
-                verticalInput += 1f;
-            if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)
-                verticalInput -= 1f;
+                verticalInput = 1f;
+            else if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)
+                verticalInput = -1f;
 
             if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
-                horizontalInput += 1f;
-            if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
-                horizontalInput -= 1f;
+                horizontalInput = 1f;
+            else if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
+                horizontalInput = -1f;
 
             if (Keyboard.current.spaceKey.isPressed)
                 isBreaking = true;
@@ -100,11 +139,18 @@ public class CarController : MonoBehaviour
                 ResetCarRotation();
         }
 
+        // 🔥 GAMEPAD (SAMA, TIDAK PAKAI +=)
         if (Gamepad.current != null)
         {
-            horizontalInput += Gamepad.current.leftStick.x.ReadValue();
-            verticalInput += Gamepad.current.leftStick.y.ReadValue();
-            
+            float gpVertical = Gamepad.current.leftStick.y.ReadValue();
+            float gpHorizontal = Gamepad.current.leftStick.x.ReadValue();
+
+            if (Mathf.Abs(gpVertical) > 0.1f)
+                verticalInput = gpVertical;
+
+            if (Mathf.Abs(gpHorizontal) > 0.1f)
+                horizontalInput = gpHorizontal;
+
             if (Gamepad.current.buttonSouth.isPressed)
                 isBreaking = true;
 
@@ -112,18 +158,31 @@ public class CarController : MonoBehaviour
                 ResetCarRotation();
         }
 
+        // Clamp biar aman
         horizontalInput = Mathf.Clamp(horizontalInput, -1f, 1f);
         verticalInput = Mathf.Clamp(verticalInput, -1f, 1f);
     }
-
+    
     public void StartAutoDrive()
     {
+        if (!isAutoDrive) return; // 🔥 cegah di manual
+
         autoStart = true;
         Debug.Log("AUTO DRIVE AKTIF!");
     }
 
     private void HandleMotor()
     {
+        if (!canDrive)
+        {
+            // Hentikan semua
+            frontLeftWheelCollider.motorTorque = 0f;
+            frontRightWheelCollider.motorTorque = 0f;
+            rearLeftWheelCollider.motorTorque = 0f;
+            rearRightWheelCollider.motorTorque = 0f;
+            return;
+        }
+        
         float currentMotorForce = motorForce;
 
         if (isNitroActive)
@@ -133,11 +192,16 @@ public class CarController : MonoBehaviour
 
         float input = verticalInput;
 
-        // Kalau auto start aktif → override input
-        if (autoStart)
+        // 🔥 AUTO MODE
+        if (isAutoDrive && autoStart)
         {
             input = 0.5f;
-            Debug.Log("AutoStart: " + autoStart + " | Input: " + input);
+        }
+
+        // 🔥 MANUAL MODE (ANTI NGESOT)
+        if (!isAutoDrive && Mathf.Abs(verticalInput) < 0.01f)
+        {
+            input = 0f;
         }
 
         float motorTorqueValue = input * currentMotorForce;
@@ -242,13 +306,15 @@ public class CarController : MonoBehaviour
     }
 
     // Gas
-    public void GasDown()
+   public void GasDown()
     {
+        Debug.Log("GAS TEKAN");
         mobileThrottle = 1f;
     }
 
     public void GasUp()
     {
+        Debug.Log("GAS LEPAS");
         mobileThrottle = 0f;
     }
 
@@ -273,5 +339,12 @@ public class CarController : MonoBehaviour
     {
         Debug.Log("NITRO OFF");
         isNitroActive = false;
+    }
+
+    public void ResetInput()
+    {
+        mobileThrottle = 0f;
+        mobileBrake = false;
+        mobileSteer = 0f;
     }
 }
