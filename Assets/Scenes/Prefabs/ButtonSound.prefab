@@ -44,7 +44,7 @@ AudioSource:
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
-  m_Resource: {fileID: 8300000, guid: 4cf155270665f624dbf370382be7a908, type: 3}
+  m_Resource: {fileID: 0}
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
@@ -143,5 +143,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ButtonSound
   audioSource: {fileID: 8563329190161131270}
-  clickSound: {fileID: 8300000, guid: 4cf155270665f624dbf370382be7a908, type: 3}
+  suaraTombol1: {fileID: 0}
+  suaraTombol2: {fileID: 0}
+  sliderSuara: {fileID: 0}
   volume: 1

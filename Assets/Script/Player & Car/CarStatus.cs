@@ -50,11 +50,17 @@ public class CarStatus : MonoBehaviour
         if (isDead) return;
         isDead = true;
         currentHits = maxCollisions;
-        Debug.Log("[CarStatus] Mobil tidak bisa digunakan! (Sudah menabrak 15 kali)");
+        Debug.Log("[CarStatus] Mobil mogok! (Sudah menabrak 15 kali)");
+
+        CarController controller = GetComponent<CarController>();
+        if (controller != null)
+        {
+            controller.StopCar(); // Memanggil fungsi stop yang kita buat tadi
+        }
         
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.TriggerGameOver("Mobil Hancur (Menabrak 15 Kali)!");
+            GameManager.Instance.TriggerGameOver("GAMEO OVER!");
         }
     }
 }

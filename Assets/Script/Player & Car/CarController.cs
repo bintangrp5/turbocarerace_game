@@ -8,28 +8,30 @@ public class CarController : MonoBehaviour
     private float horizontalInput, verticalInput;
     private float currentSteerAngle, currentbreakForce;
     private bool isBreaking;
+    
+    [Header("Drive Settings")]
     public bool isAutoDrive = false;
-    public float autoSpeed = 10f;
+    public float autoSpeed = 10f; // Kecepatan dasar auto
+    public bool canDrive = true;
 
     private float mobileSteer = 0f;
     private float mobileThrottle = 0f;
     private bool mobileBrake = false;
     private CarStatus carStatus;
     private Rigidbody rb;
-    public bool canDrive = true;
+    private Rigidbody playerRigidbody;
 
-    //settings
     [Header("Drivetrain Settings")]
-    [SerializeField] private DrivetrainType drivetrain = DrivetrainType.RWD; // Default RWD agar lebih mudah dikendalikan
+    [SerializeField] private DrivetrainType drivetrain = DrivetrainType.RWD;
     [SerializeField] private float motorForce, breakForce, maxSteerAngle;
 
     [Header("Auto Start")]
-    [SerializeField] private float autoStartSpeed = 12f; // ≈ 43 km/h
+    [SerializeField] private float autoStartSpeed = 12f;
     private bool autoStart = false;
 
     [Header("Physics & Stability")]
-    [SerializeField] private Vector3 centerOfMassOffset = new Vector3(0f, -0.8f, 0f); // Pusat massa diturunkan agar sangat stabil
-    [SerializeField] private float downforce = 50f; // Gaya tekan ke bawah ekstra agar ban menempel di jalan
+    [SerializeField] private Vector3 centerOfMassOffset = new Vector3(0f, -0.8f, 0f);
+    [SerializeField] private float downforce = 50f;
 
     [Header("UI Control")]
     public GameObject pedalGas;
@@ -38,53 +40,32 @@ public class CarController : MonoBehaviour
     [SerializeField] private float nitroMultiplier = 2f;
     private bool isNitroActive = false;
 
-    //wheel coliders
+    [Header("Wheel Colliders")]
     [SerializeField] private WheelCollider frontLeftWheelCollider, frontRightWheelCollider;
     [SerializeField] private WheelCollider rearLeftWheelCollider, rearRightWheelCollider;
 
-    //wheels
+    [Header("Wheel Transforms")]
     [SerializeField] private Transform frontLeftWheelTransform, frontRightWheelTransform;
     [SerializeField] private Transform rearLeftWheelTransform, rearRightWheelTransform;
 
-   private void Start()
+    private void Start()
     {
         carStatus = GetComponent<CarStatus>();
-        rb = GetComponent<Rigidbody>();
+        rb = GetComponent<Rigidbody>(); // Ini sudah ada di kode aslimu
+        playerRigidbody = rb; // Karena 'rb' dan 'playerRigidbody' adalah komponen yang sama
 
-        if (rb != null)
-        {
-            rb.centerOfMass = centerOfMassOffset;
-        }
+        if (rb != null) rb.centerOfMass = centerOfMassOffset;
 
-        // 🔥 CUKUP INI SAJA
         ResetInput();
 
         int kontrol = PlayerPrefs.GetInt("kontrol", 0);
-
-        if (kontrol == 0)
-        {
-            Debug.Log("Mode Manual");
-            isAutoDrive = false;
-
-            autoStart = false;
-
-            if (pedalGas != null)
-                pedalGas.SetActive(true);
-        }
-        else
-        {
-            Debug.Log("Mode Otomatis");
-            isAutoDrive = true;
-
-            if (pedalGas != null)
-                pedalGas.SetActive(false);
-        }
+        isAutoDrive = (kontrol != 0);
+        
+        if (pedalGas != null) pedalGas.SetActive(!isAutoDrive);
+        if (isAutoDrive) Debug.Log("Mode Otomatis Aktif");
     }
 
-    private void Update()
-    {
-        GetInput();
-    }
+    private void Update() => GetInput();
 
     private void FixedUpdate()
     {
@@ -96,157 +77,82 @@ public class CarController : MonoBehaviour
 
     private void GetInput()
     {
-        // 🔥 AUTO MODE
         if (isAutoDrive)
         {
             horizontalInput = mobileSteer;
-            verticalInput = 0f;
+            verticalInput = 0f; // Input manual tidak berpengaruh di auto
             isBreaking = mobileBrake;
             return;
         }
 
-        // 🔥 MANUAL MODE (UTAMA DARI MOBILE)
         horizontalInput = mobileSteer;
         verticalInput = mobileThrottle;
         isBreaking = mobileBrake;
 
-        if (!canDrive)
-            return;
-
-        if (carStatus != null && carStatus.IsDead)
+        if (!canDrive || (carStatus != null && carStatus.IsDead))
         {
             isBreaking = true;
             return;
         }
 
-        // 🔥 KEYBOARD (TIDAK PAKAI += BIAR GA NIMPA)
+        // Keyboard & Gamepad Input
         if (Keyboard.current != null)
         {
-            if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)
-                verticalInput = 1f;
-            else if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)
-                verticalInput = -1f;
+            if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) verticalInput = 1f;
+            else if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) verticalInput = -1f;
 
-            if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
-                horizontalInput = 1f;
-            else if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
-                horizontalInput = -1f;
+            if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) horizontalInput = 1f;
+            else if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) horizontalInput = -1f;
 
-            if (Keyboard.current.spaceKey.isPressed)
-                isBreaking = true;
-
-            if (Keyboard.current.rKey.wasPressedThisFrame)
-                ResetCarRotation();
+            if (Keyboard.current.spaceKey.isPressed) isBreaking = true;
+            if (Keyboard.current.rKey.wasPressedThisFrame) ResetCarRotation();
         }
-
-        // 🔥 GAMEPAD (SAMA, TIDAK PAKAI +=)
-        if (Gamepad.current != null)
-        {
-            float gpVertical = Gamepad.current.leftStick.y.ReadValue();
-            float gpHorizontal = Gamepad.current.leftStick.x.ReadValue();
-
-            if (Mathf.Abs(gpVertical) > 0.1f)
-                verticalInput = gpVertical;
-
-            if (Mathf.Abs(gpHorizontal) > 0.1f)
-                horizontalInput = gpHorizontal;
-
-            if (Gamepad.current.buttonSouth.isPressed)
-                isBreaking = true;
-
-            if (Gamepad.current.buttonNorth.wasPressedThisFrame)
-                ResetCarRotation();
-        }
-
-        // Clamp biar aman
-        horizontalInput = Mathf.Clamp(horizontalInput, -1f, 1f);
-        verticalInput = Mathf.Clamp(verticalInput, -1f, 1f);
-    }
-    
-    public void StartAutoDrive()
-    {
-        if (!isAutoDrive) return; // 🔥 cegah di manual
-
-        autoStart = true;
-        Debug.Log("AUTO DRIVE AKTIF!");
     }
 
     private void HandleMotor()
     {
         if (!canDrive)
         {
-            // Hentikan semua
-            frontLeftWheelCollider.motorTorque = 0f;
-            frontRightWheelCollider.motorTorque = 0f;
-            rearLeftWheelCollider.motorTorque = 0f;
-            rearRightWheelCollider.motorTorque = 0f;
+            SetMotorTorque(0f);
             return;
         }
         
-        float currentMotorForce = motorForce;
+        float currentMotorForce = motorForce * (isNitroActive ? nitroMultiplier : 1f);
+        float input = isAutoDrive && autoStart ? (autoSpeed / 20f) : verticalInput;
 
-        if (isNitroActive)
-        {
-            currentMotorForce *= nitroMultiplier;
-        }
-
-        float input = verticalInput;
-
-        // 🔥 AUTO MODE
-        if (isAutoDrive && autoStart)
-        {
-            input = 0.5f;
-        }
-
-        // 🔥 MANUAL MODE (ANTI NGESOT)
-        if (!isAutoDrive && Mathf.Abs(verticalInput) < 0.01f)
-        {
-            input = 0f;
-        }
+        if (!isAutoDrive && Mathf.Abs(verticalInput) < 0.01f) input = 0f;
 
         float motorTorqueValue = input * currentMotorForce;
-
-        // Reset torsi untuk semua roda terlebih dahulu
-        frontLeftWheelCollider.motorTorque = 0f;
-        frontRightWheelCollider.motorTorque = 0f;
-        rearLeftWheelCollider.motorTorque = 0f;
-        rearRightWheelCollider.motorTorque = 0f;
-
-        switch (drivetrain)
-        {
-            case DrivetrainType.FWD:
-                frontLeftWheelCollider.motorTorque = motorTorqueValue;
-                frontRightWheelCollider.motorTorque = motorTorqueValue;
-                break;
-            case DrivetrainType.RWD:
-                rearLeftWheelCollider.motorTorque = motorTorqueValue;
-                rearRightWheelCollider.motorTorque = motorTorqueValue;
-                break;
-            case DrivetrainType.AWD:
-                frontLeftWheelCollider.motorTorque = motorTorqueValue;
-                frontRightWheelCollider.motorTorque = motorTorqueValue;
-                rearLeftWheelCollider.motorTorque = motorTorqueValue;
-                rearRightWheelCollider.motorTorque = motorTorqueValue;
-                break;
-        }
-
+        SetMotorTorque(motorTorqueValue);
+        
         currentbreakForce = isBreaking ? breakForce : 0f;
         ApplyBreaking();
     }
 
+    private void SetMotorTorque(float torque)
+    {
+        if (drivetrain == DrivetrainType.FWD || drivetrain == DrivetrainType.AWD)
+        {
+            frontLeftWheelCollider.motorTorque = torque;
+            frontRightWheelCollider.motorTorque = torque;
+        }
+        if (drivetrain == DrivetrainType.RWD || drivetrain == DrivetrainType.AWD)
+        {
+            rearLeftWheelCollider.motorTorque = torque;
+            rearRightWheelCollider.motorTorque = torque;
+        }
+    }
+
     private void ApplyBreaking()
     {
-        frontRightWheelCollider.brakeTorque = currentbreakForce;
-        frontLeftWheelCollider.brakeTorque = currentbreakForce;
-        rearLeftWheelCollider.brakeTorque = currentbreakForce;
-        rearRightWheelCollider.brakeTorque = currentbreakForce;
+        frontRightWheelCollider.brakeTorque = frontLeftWheelCollider.brakeTorque = 
+        rearLeftWheelCollider.brakeTorque = rearRightWheelCollider.brakeTorque = currentbreakForce;
     }
 
     private void HandleSteering()
     {
         currentSteerAngle = maxSteerAngle * horizontalInput;
-        frontLeftWheelCollider.steerAngle = currentSteerAngle;
-        frontRightWheelCollider.steerAngle = currentSteerAngle;
+        frontLeftWheelCollider.steerAngle = frontRightWheelCollider.steerAngle = currentSteerAngle;
     }
 
     private void UpdateWheels()
@@ -257,94 +163,81 @@ public class CarController : MonoBehaviour
         UpdateSingleWheel(rearRightWheelCollider, rearRightWheelTransform);
     }
 
-    private void UpdateSingleWheel(WheelCollider wheelCollider, Transform wheelTransform)
+    private void UpdateSingleWheel(WheelCollider wc, Transform wt)
     {
-        Vector3 pos;
-        Quaternion rot;
-        wheelCollider.GetWorldPose(out pos, out rot);
-        wheelTransform.rotation = rot;
-        wheelTransform.position = pos;
+        wc.GetWorldPose(out Vector3 pos, out Quaternion rot);
+        wt.position = pos;
+        wt.rotation = rot;
     }
 
     private void ApplyDownforce()
     {
-        if (rb != null)
-        {
-            // Gunakan rb.velocity agar kompatibel dengan seluruh versi Unity
-            rb.AddForce(-transform.up * downforce * rb.linearVelocity.magnitude);
-        }
+        if (rb != null) rb.AddForce(-transform.up * downforce * rb.linearVelocity.magnitude);
     }
 
+    public void StartAutoDrive()
+    {
+        if (isAutoDrive) autoStart = true;
+    }
+
+    private void Awake()
+    {
+        // 2. AMBIL KOMPONENNYA saat game dimulai
+        playerRigidbody = GetComponent<Rigidbody>();
+    }
+
+    public void BoostSpeed(float boostAmount)
+    {
+        // 1. Ubah satuan km/jam ke meter/detik (m/s)
+        // 15 km/jam dibagi 3.6 = 4.16 m/s
+        float boostInMPS = boostAmount / 3.6f;
+
+        // 2. Tambahkan kecepatan secara linear (tidak menyentak)
+        if (playerRigidbody != null)
+        {
+            // Ambil kecepatan saat ini, lalu tambahkan 15 km/jam ke arah depan
+            playerRigidbody.linearVelocity += transform.forward * boostInMPS;
+        }
+
+        // 3. Update target kecepatan AI
+        autoSpeed += boostAmount;
+
+        Debug.Log("Boost Aktif! Menambah kecepatan tepat: " + boostAmount + " km/jam");
+    }
     public void ResetCarRotation()
     {
         if (rb != null)
         {
-            // Angkat sedikit ke atas dan posisikan tegak lurus
             transform.position += Vector3.up * 1.5f;
             transform.rotation = Quaternion.LookRotation(transform.forward, Vector3.up);
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
+            rb.linearVelocity = rb.angularVelocity = Vector3.zero;
         }
     }
 
-    // Steering
-    public void TurnLeftDown()
+    // Di dalam CarController.cs
+    public void StopCar()
     {
-        Debug.Log("LEFT BUTTON");
-        mobileSteer = -1f;
+        canDrive = false; // Mematikan input (seperti yang sudah ada di HandleMotor)
+        
+        // Matikan mesin/kecepatan
+        if (rb != null) 
+        {
+            rb.linearVelocity *= 0.5f; // Mobil berhenti seketika
+            rb.angularVelocity = Vector3.zero;
+        }
+        
+        // Matikan suara mesin jika ada (opsional)
     }
 
-    public void TurnRightDown()
-    {
-        Debug.Log("RIGHT BUTTON");
-        mobileSteer = 1f;
-    }
-
-    public void TurnUp()
-    {
-        mobileSteer = 0f;
-    }
-
-    // Gas
-   public void GasDown()
-    {
-        Debug.Log("GAS TEKAN");
-        mobileThrottle = 1f;
-    }
-
-    public void GasUp()
-    {
-        Debug.Log("GAS LEPAS");
-        mobileThrottle = 0f;
-    }
-
-    // Brake
-    public void BrakeDown()
-    {
-        mobileBrake = true;
-    }
-
-    public void BrakeUp()
-    {
-        mobileBrake = false;
-    }
-
-    public void NitroDown()
-    {
-        Debug.Log("NITRO ON");
-        isNitroActive = true;
-    }
-
-    public void NitroUp()
-    {
-        Debug.Log("NITRO OFF");
-        isNitroActive = false;
-    }
-
-    public void ResetInput()
-    {
-        mobileThrottle = 0f;
-        mobileBrake = false;
-        mobileSteer = 0f;
-    }
+    // Input UI Methods
+    public void TurnLeftDown() => mobileSteer = -1f;
+    public void TurnRightDown() => mobileSteer = 1f;
+    public void TurnUp() => mobileSteer = 0f;
+    public void GasDown() => mobileThrottle = 1f;
+    public void GasUp() => mobileThrottle = 0f;
+    public void BrakeDown() => mobileBrake = true;
+    public void BrakeUp() => mobileBrake = false;
+    public void NitroDown() => isNitroActive = true;
+    public void NitroUp() => isNitroActive = false;
+    public void ResetInput() { mobileThrottle = 0f; mobileBrake = false; mobileSteer = 0f; }
 }

@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
 using TMPro;
+using System.Linq; // Tambahkan ini untuk sorting
 
 public enum TimerMode
 {
@@ -19,11 +20,20 @@ public class GameManager : MonoBehaviour
     private float timeElapsed = 0f;
 
     [Header("Game Flow")]
-    [SerializeField] private int totalCheckpoints = 5;
-    [SerializeField] private int scorePerCheckpoint = 100; // Skor yang didapat setiap melewati checkpoint
+    // Hapus totalCheckpoints, kita hitung otomatis
+    [SerializeField] private int scorePerCheckpoint = 100; 
     private int currentCheckpointIndex = -1;
     private int score = 0;
     private bool isGameActive = false;
+
+    // Variabel baru untuk sistem Checkpoint dinamis
+    private Checkpoint[] allCheckpoints;
+    private int activeCheckpointsThisLap = 0;
+    private int checkpointsPassedThisLap = 0;
+
+    // Variabel baru untuk melacak checkpoint wajib
+    private int activeMandatoryCheckpoints = 0;
+    private int mandatoryCheckpointsPassedThisLap = 0;
 
     [Header("Lap Settings")]
     [SerializeField] private int totalLaps = 1;
@@ -32,22 +42,31 @@ public class GameManager : MonoBehaviour
 
     [Header("Timer Settings")]
     [SerializeField] private TimerMode timerMode = TimerMode.CountUp;
-    [SerializeField] private float initialTimeLimit = 60f; // Waktu awal dalam detik untuk CountDown
-    [SerializeField] private float timeBonusPerCheckpoint = 15f; // Bonus waktu setiap melewati checkpoint
+    [SerializeField] private float initialTimeLimit = 60f; 
+    [SerializeField] private float timeBonusPerCheckpoint = 15f; 
 
     private float timeRemaining = 0f;
     private Color originalTimerTextColor = Color.white;
 
     [Header("UI Canvas Elements (Opsional)")]
-    [SerializeField] private Slider healthSlider; // Slider untuk jumlah sisa kesempatan menabrak
-    [SerializeField] private TMP_Text timerText; // Teks waktu berjalan naik dari 0
+    [SerializeField] private Slider healthSlider; 
+    [SerializeField] private TMP_Text timerText; 
     [SerializeField] private TMP_Text scoreText;
-    [SerializeField] private TMP_Text speedText; // Teks untuk menampilkan kecepatan mobil (KM/H)
+    [SerializeField] private TMP_Text speedText; 
     [SerializeField] private GameObject gameOverPanel;
     [SerializeField] private TMP_Text gameOverMessageText;
     [SerializeField] private GameObject victoryPanel;
-    [SerializeField] private TMP_Text victoryTimeText; // Menampilkan total waktu kemenangan
+    [SerializeField] private TMP_Text victoryTimeText;
 
+    [Header("Final Goal Settings")]
+    [SerializeField] private Checkpoint finalGoalCheckpoint; 
+
+    [Header("UI Text References")]
+    [SerializeField] private TMP_Text hudScoreText;      
+    [SerializeField] private TMP_Text gameOverScoreText;  
+    [SerializeField] private TMP_Text victoryScoreText;  
+   
+    
     private CarStatus playerCarStatus;
     private Rigidbody playerRigidbody;
 
@@ -67,19 +86,14 @@ public class GameManager : MonoBehaviour
     {
         Time.timeScale = 1f;
 
-        if (panelPause != null)
-        {
-            panelPause.SetActive(false);
-        }
+        if (panelPause != null) panelPause.SetActive(false);
+        
         timeElapsed = 0f;
         timeRemaining = initialTimeLimit;
         isGameActive = false;
         currentLap = 1;
 
-        if (timerText != null)
-        {
-            originalTimerTextColor = timerText.color;
-        }
+        if (timerText != null) originalTimerTextColor = timerText.color;
 
         playerCarStatus = FindObjectOfType<CarStatus>();
         if (playerCarStatus != null)
@@ -90,12 +104,20 @@ public class GameManager : MonoBehaviour
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
         if (victoryPanel != null) victoryPanel.SetActive(false);
 
-        // Bind Pause Button
-        GameObject pauseBtnObj = GameObject.Find("Pause");
-        if (pauseBtnObj == null)
-        {
-            pauseBtnObj = GameObject.Find("Canvas/UI_HUD/Pause");
-        }
+        SetupButtons();
+
+        // Cari SEMUA checkpoint di scene (termasuk yang tidak aktif)
+        allCheckpoints = FindObjectsByType<Checkpoint>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        
+        // Setup checkpoint untuk lap 1
+        SetupLapCheckpoints();
+        
+        UpdateUIHUD();
+    }
+    
+    private void SetupButtons()
+    {
+        GameObject pauseBtnObj = GameObject.Find("Pause") ?? GameObject.Find("Canvas/UI_HUD/Pause");
         if (pauseBtnObj != null)
         {
             Button pauseButton = pauseBtnObj.GetComponent<Button>();
@@ -103,71 +125,67 @@ public class GameManager : MonoBehaviour
             {
                 pauseButton.onClick.RemoveAllListeners();
                 pauseButton.onClick.AddListener(PauseGame);
-                Debug.Log("[GameManager] Bound Pause button click event programmatically.");
             }
         }
 
-        // Bind panelPause buttons
         if (panelPause != null)
         {
             Button resumeButton = panelPause.transform.Find("btn_mainlagi")?.GetComponent<Button>();
-            if (resumeButton != null)
-            {
-                resumeButton.onClick.RemoveAllListeners();
-                resumeButton.onClick.AddListener(ResumeGame);
-                Debug.Log("[GameManager] Bound Resume button (btn_mainlagi) programmatically.");
-            }
+            if (resumeButton != null) { resumeButton.onClick.RemoveAllListeners(); resumeButton.onClick.AddListener(ResumeGame); }
 
             Button restartButton = panelPause.transform.Find("btn_ulangi")?.GetComponent<Button>();
-            if (restartButton != null)
-            {
-                restartButton.onClick.RemoveAllListeners();
-                restartButton.onClick.AddListener(RestartRace);
-                Debug.Log("[GameManager] Bound Restart button (btn_ulangi) programmatically.");
-            }
+            if (restartButton != null) { restartButton.onClick.RemoveAllListeners(); restartButton.onClick.AddListener(RestartRace); }
 
             Button quitButton = panelPause.transform.Find("btn_berhentibalapan")?.GetComponent<Button>();
-            if (quitButton != null)
-            {
-                quitButton.onClick.RemoveAllListeners();
-                quitButton.onClick.AddListener(QuitRace);
-                Debug.Log("[GameManager] Bound Quit button (btn_berhentibalapan) programmatically.");
-            }
-        }
-
-        UpdateUIHUD();
-    }
-
-        public void StartRace()
-    {
-        Debug.Log("START RACE DIPANGGIL");
-        isGameActive = true;
-
-        if (car != null)
-        {
-            car.StartAutoDrive();
+            if (quitButton != null) { quitButton.onClick.RemoveAllListeners(); quitButton.onClick.AddListener(QuitRace); }
         }
     }
-            
 
-    private void Update()
+    // Fungsi baru untuk mengatur Checkpoint mana yang aktif di lap tertentu
+    private void SetupLapCheckpoints()
     {
-        // Menggunakan Input System Baru untuk mendeteksi tombol P di Keyboard
-        if (Keyboard.current != null && Keyboard.current.pKey.wasPressedThisFrame)
+        activeMandatoryCheckpoints = 0;
+        mandatoryCheckpointsPassedThisLap = 0;
+        currentCheckpointIndex = -1; 
+
+        foreach (Checkpoint cp in allCheckpoints)
         {
-            if (panelPause != null && panelPause.activeSelf)
+            if (cp.TargetLap == 0 || cp.TargetLap == currentLap)
             {
-                ResumeGame();
+                cp.gameObject.SetActive(true);
+                cp.ResetCheckpoint();
+                
+                // Hitung berapa banyak checkpoint WAJIB di lap ini
+                if (cp.IsMandatory)
+                {
+                    activeMandatoryCheckpoints++;
+                }
             }
             else
             {
-                PauseGame();
+                cp.gameObject.SetActive(false); 
             }
+        }
+
+        Debug.Log($"[GameManager] Lap {currentLap} Mulai. Checkpoint Wajib: {activeMandatoryCheckpoints}");
+    }
+
+    public void StartRace()
+    {
+        isGameActive = true;
+        if (car != null) car.StartAutoDrive();
+    }
+
+    private void Update()
+    {
+        if (Keyboard.current != null && Keyboard.current.pKey.wasPressedThisFrame)
+        {
+            if (panelPause != null && panelPause.activeSelf) ResumeGame();
+            else PauseGame();
         }
         
         if (!isGameActive) return;
         
-        // Hitung waktu bertambah (stopwatch / count up)
         timeElapsed += Time.deltaTime;
 
         if (timerMode == TimerMode.CountDown)
@@ -182,87 +200,99 @@ public class GameManager : MonoBehaviour
             }
         }
 
-
         UpdateUIHUD();
     }
 
-    public void OnCheckpointPassed(int index)
+    public void OnCheckpointPassed(Checkpoint cp)
     {
         if (!isGameActive) return;
 
-        // Memastikan checkpoint dilewati sesuai urutan agar tidak bisa curang
-        if (index > currentCheckpointIndex)
+        int index = cp.CheckpointIndex;
+
+        // GARIS FINISH (LAP)
+        if (cp.IsFinishLine) 
         {
-            currentCheckpointIndex = index;
-            Debug.Log($"[GameManager] Checkpoint {index} Terlewati! Waktu saat ini: {timeElapsed:F1} detik.");
-
-            // Tambahkan skor setelah melewati checkpoint
-            AddScore(scorePerCheckpoint);
-
-            // Jika dalam mode CountDown, berikan bonus waktu
-            if (timerMode == TimerMode.CountDown)
-            {
-                timeRemaining += timeBonusPerCheckpoint;
-                Debug.Log($"[GameManager] Bonus waktu +{timeBonusPerCheckpoint}s! Sisa waktu sekarang: {timeRemaining:F1}s.");
-            }
-
-            // Jika player berhasil melewati semua checkpoint
-            if (currentCheckpointIndex == totalCheckpoints - 1)
+            if (mandatoryCheckpointsPassedThisLap >= activeMandatoryCheckpoints)
             {
                 if (currentLap < totalLaps)
                 {
                     currentLap++;
-                    currentCheckpointIndex = -1; // Reset checkpoint index untuk lap berikutnya
-                    
-                    // Reset semua checkpoint di scene agar bisa dipicu kembali
-                    Checkpoint[] checkpoints = FindObjectsOfType<Checkpoint>();
-                    foreach (Checkpoint cp in checkpoints)
-                    {
-                        cp.ResetCheckpoint();
-                    }
-                    
-                    Debug.Log($"[GameManager] Lap {currentLap - 1} Selesai! Mulai Lap {currentLap}/{totalLaps}.");
+                    SetupLapCheckpoints(); 
+                    Debug.Log($"[GameManager] Lap {currentLap} Dimulai!");
                 }
                 else
                 {
-                    TriggerVictory();
+                    // JIKA INI LAP TERAKHIR, AKTIFKAN FINAL GOAL
+                    Debug.Log("[GameManager] Lap Terakhir Selesai! Menuju Checkpoint Final!");
+                    if (finalGoalCheckpoint != null) finalGoalCheckpoint.gameObject.SetActive(true);
                 }
             }
+            else
+            {
+                cp.ResetCheckpoint(); 
+            }
+            return; 
+        }
+
+        // CHECKPOINT FINAL (VICTORY)
+        if (cp == finalGoalCheckpoint)
+        {
+            Debug.Log("[GameManager] Final Goal Terlewati! Menang!");
+            TriggerVictory();
+            return;
+        }
+
+        // CHECKPOINT BIASA & WAJIB
+        if (index <= currentCheckpointIndex) return;
+        currentCheckpointIndex = index; 
+
+        AddScore(scorePerCheckpoint);
+        if (timerMode == TimerMode.CountDown) timeRemaining += timeBonusPerCheckpoint;
+
+        if (cp.IsMandatory)
+        {
+            mandatoryCheckpointsPassedThisLap++;
         }
     }
-
+    
     public void AddScore(int amount)
     {
         if (!isGameActive) return;
         score += amount;
-        Debug.Log($"[GameManager] Skor bertambah! Total Skor: {score}");
+        
+        // Update semua teks skor yang ada
+        if (hudScoreText != null) hudScoreText.text = $"Skor: {score}";
+        if (gameOverScoreText != null) gameOverScoreText.text = $"Skor Akhir: {score}";
+        if (victoryScoreText != null) victoryScoreText.text = $"Skor Akhir: {score}";
     }
 
     public void TriggerGameOver(string message)
     {
         if (!isGameActive) return;
         isGameActive = false;
-        Debug.Log($"[GameManager] GAME OVER: {message}");
 
-        if (gameOverPanel != null)
-        {
-            gameOverPanel.SetActive(true);
-        }
+        // 1. Munculkan panel
+        if (gameOverPanel != null) gameOverPanel.SetActive(true);
+        
+        // 2. Set pesan (misal: "Waktu Habis!")
         if (gameOverMessageText != null)
+        
+        // 3. Set skor akhir ke UI Game Over
+        if (gameOverScoreText != null)
         {
-            gameOverMessageText.text = message;
+            gameOverScoreText.text = $"Skor Akhir: {score}";
         }
-    }
 
+        Time.timeScale = 0f; 
+    }
 
     public void TriggerVictory()
     {
         if (!isGameActive) return;
         isGameActive = false;
-
+        Time.timeScale = 0f; 
         string sceneName = SceneManager.GetActiveScene().name;
 
-        // 🔓 UNLOCK SYSTEM BERDASARKAN LEVEL
         if (sceneName == "Level_1")
         {
             PlayerPrefs.SetInt("Level1Done", 1);
@@ -273,16 +303,10 @@ public class GameManager : MonoBehaviour
             PlayerPrefs.SetInt("Level2Done", 1);
             PlayerPrefs.SetInt("Level3Unlocked", 1);
         }
-        // nanti tinggal lanjut kalau ada level berikutnya
-
+        
         PlayerPrefs.Save();
 
-        Debug.Log($"[GameManager] VICTORY di {sceneName}! Total waktu: {timeElapsed:F1}s");
-
-        if (victoryPanel != null)
-        {
-            victoryPanel.SetActive(true);
-        }
+        if (victoryPanel != null) victoryPanel.SetActive(true);
 
         if (victoryTimeText != null)
         {
@@ -290,19 +314,21 @@ public class GameManager : MonoBehaviour
             int seconds = Mathf.FloorToInt(timeElapsed - minutes * 60);
             victoryTimeText.text = string.Format("Waktu: {0:0}:{1:00}", minutes, seconds);
         }
-    }
 
+        if (victoryScoreText != null)
+        {
+            victoryScoreText.text = $"Skor Akhir: {score}";
+        }
+    }
 
     private void UpdateUIHUD()
     {
-        // Update Slider HP (Kesempatan Menabrak tersisa)
         if (playerCarStatus != null && healthSlider != null)
         {
             healthSlider.maxValue = playerCarStatus.MaxCollisions;
             healthSlider.value = playerCarStatus.RemainingHits;
         }
 
-        // Update Teks Timer
         if (timerText != null)
         {
             float displayTime = (timerMode == TimerMode.CountDown) ? timeRemaining : timeElapsed;
@@ -322,20 +348,16 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // Update Teks Skor
-        if (scoreText != null)
-        {
-            scoreText.text = $"Skor: {score}";
-        }
+        if (hudScoreText != null) hudScoreText.text = $"Skor: {score}";
+        if (gameOverScoreText != null) gameOverScoreText.text = $"Skor Akhir: {score}";
+        if (victoryScoreText != null) victoryScoreText.text = $"Skor Akhir: {score}";
 
-        // Update Teks Kecepatan Mobil
         if (speedText != null && playerRigidbody != null)
         {
             float speedKmh = playerRigidbody.linearVelocity.magnitude * 3.6f;
             speedText.text = $"{Mathf.RoundToInt(speedKmh)} km/h";
         }
 
-        // Update Teks Lap
         if (lapText != null)
         {
             if (totalLaps > 1)
@@ -343,23 +365,14 @@ public class GameManager : MonoBehaviour
                 lapText.gameObject.SetActive(true);
                 lapText.text = $"Lap: {currentLap}/{totalLaps}";
             }
-            else
-            {
-                lapText.gameObject.SetActive(false);
-            }
+            else lapText.gameObject.SetActive(false);
         }
     }
 
-   public void PauseGame()
+    public void PauseGame()
     {   
-        Debug.Log("PAUSE DIPANGGIL");
         Time.timeScale = 0f;
-
-        if(panelPause != null)
-        {
-            panelPause.SetActive(true);
-        }
-
+        if(panelPause != null) panelPause.SetActive(true);
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
     }
@@ -368,24 +381,39 @@ public class GameManager : MonoBehaviour
     {
         Time.timeScale = 1f;
         panelPause.SetActive(false);
-
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
     }
 
     public void RestartRace()
     {
-        Debug.Log("RESTART RACE");
-
         Time.timeScale = 1f;
-
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     public void QuitRace()
     {
         Time.timeScale = 1f;
-
         SceneManager.LoadScene("Main Menu");
+    }
+
+    public void LoadNextLevel()
+    {
+        Time.timeScale = 1f; 
+        
+        string currentScene = SceneManager.GetActiveScene().name;
+        
+        if (currentScene == "Level_1") 
+        {
+            SceneManager.LoadScene("Level_2");
+        }
+        else if (currentScene == "Level_2") 
+        {
+            SceneManager.LoadScene("Level_3");
+        }
+        else 
+        {
+            Debug.Log("Ini adalah level terakhir!");
+        }
     }
 }

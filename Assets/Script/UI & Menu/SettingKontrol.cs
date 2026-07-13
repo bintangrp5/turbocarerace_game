@@ -1,10 +1,10 @@
 using UnityEngine;
 using TMPro;
-using UnityEngine.UI; // 🔥 Wajib ditambahkan agar bisa mengubah warna Image Button
+using UnityEngine.UI;
 
 public class SettingKontrol : MonoBehaviour
 {
-    public TMP_Text previewSpeedText; // TMP di menu setting
+    public TMP_Text previewSpeedText;
 
     [Header("UI Tombol Kamera")]
     public Image tombolDekat;
@@ -15,17 +15,19 @@ public class SettingKontrol : MonoBehaviour
     public Image tombolKMH;
     public Image tombolMPH;
 
-    // Warna untuk tombol (Biru = Terpilih, Putih = Normal)
+    [Header("UI Tombol Kontrol")]
+    public Image tombolManual;
+    public Image tombolOtomatis;
+
     private Color32 warnaPilih = new Color32(106, 141, 173, 255);
     private Color32 warnaNormal = new Color32(255, 255, 255, 255);
 
     void Start()
     {
-        // ... (Jika kamu punya kode Start lain, biarkan di sini) ...
-
-        // 🔥 Panggil fungsi ini agar saat menu dibuka, warnanya langsung menyesuaikan
+        // Panggil fungsi update saat menu dibuka agar tombol sesuai dengan data tersimpan
         UpdateWarnaTombolKamera();
         UpdateWarnaTombolSpeedUnit();
+        UpdateWarnaTombolKontrol();
     }
 
     // =====================
@@ -35,6 +37,7 @@ public class SettingKontrol : MonoBehaviour
     {
         PlayerPrefs.SetInt("kontrol", 0);
         PlayerPrefs.Save();
+        UpdateWarnaTombolKontrol();
         Debug.Log("Kontrol Manual dipilih");
     }
 
@@ -42,6 +45,7 @@ public class SettingKontrol : MonoBehaviour
     {
         PlayerPrefs.SetInt("kontrol", 1);
         PlayerPrefs.Save();
+        UpdateWarnaTombolKontrol();
         Debug.Log("Kontrol Otomatis dipilih");
     }
 
@@ -51,20 +55,12 @@ public class SettingKontrol : MonoBehaviour
     public void SetKMH()
     {
         PlayerPrefs.SetString("speed_unit", "KMH");
-        
-        // Baris di bawah ini dihapus atau diberi garis miring ganda agar tidak aktif
-        // previewSpeedText.text = "KM/JAM"; 
-        
         UpdateWarnaTombolSpeedUnit();
     }
 
     public void SetMPH()
     {
         PlayerPrefs.SetString("speed_unit", "MPH");
-        
-        // Baris di bawah ini dihapus atau diberi garis miring ganda agar tidak aktif
-        // previewSpeedText.text = "MPH"; 
-        
         UpdateWarnaTombolSpeedUnit();
     }
 
@@ -75,70 +71,54 @@ public class SettingKontrol : MonoBehaviour
     {
         PlayerPrefs.SetInt("camera_mode", 0);
         PlayerPrefs.Save();
-        UpdateWarnaTombolKamera(); // Update warna setelah dipencet
+        UpdateWarnaTombolKamera();
     }
 
     public void SetCameraMedium()
     {
         PlayerPrefs.SetInt("camera_mode", 1);
         PlayerPrefs.Save();
-        UpdateWarnaTombolKamera(); // Update warna setelah dipencet
+        UpdateWarnaTombolKamera();
     }
 
     public void SetCameraFar()
     {
         PlayerPrefs.SetInt("camera_mode", 2);
         PlayerPrefs.Save();
-        UpdateWarnaTombolKamera(); // Update warna setelah dipencet
+        UpdateWarnaTombolKamera();
     }
 
-    // 🔥 FUNGSI BARU: Mengubah warna tombol berdasarkan data yang tersimpan
+    // =====================
+    // 🔥 FUNGSI UPDATE WARNA
+    // =====================
+    void UpdateWarnaTombolKontrol()
+    {
+        if (tombolManual == null || tombolOtomatis == null) return;
+        
+        int kontrol = PlayerPrefs.GetInt("kontrol", 0);
+        
+        tombolManual.color = (kontrol == 0) ? warnaPilih : warnaNormal;
+        tombolOtomatis.color = (kontrol == 1) ? warnaPilih : warnaNormal;
+    }
+
     void UpdateWarnaTombolKamera()
     {
-        // Pastikan kolom Image di Inspector tidak kosong agar tidak error
         if (tombolDekat == null || tombolSedang == null || tombolJauh == null) return;
 
-        int mode = PlayerPrefs.GetInt("camera_mode", 1); // 1 = default sedang
+        int mode = PlayerPrefs.GetInt("camera_mode", 1);
 
-        // 1. Kembalikan semua tombol ke warna putih dulu
-        tombolDekat.color = warnaNormal;
-        tombolSedang.color = warnaNormal;
-        tombolJauh.color = warnaNormal;
-
-        // 2. Warnai biru pada tombol yang sesuai dengan angka di PlayerPrefs
-        if (mode == 0)
-        {
-            tombolDekat.color = warnaPilih;
-        }
-        else if (mode == 1)
-        {
-            tombolSedang.color = warnaPilih;
-        }
-        else if (mode == 2)
-        {
-            tombolJauh.color = warnaPilih;
-        }
+        tombolDekat.color = (mode == 0) ? warnaPilih : warnaNormal;
+        tombolSedang.color = (mode == 1) ? warnaPilih : warnaNormal;
+        tombolJauh.color = (mode == 2) ? warnaPilih : warnaNormal;
     }
 
     void UpdateWarnaTombolSpeedUnit()
     {
-        // Pastikan kolom Image di Inspector tidak kosong agar tidak error
         if (tombolKMH == null || tombolMPH == null) return;
 
-        string unit = PlayerPrefs.GetString("speed_unit", "KMH"); // Default KMH
+        string unit = PlayerPrefs.GetString("speed_unit", "KMH");
 
-        // 1. Kembalikan semua tombol ke warna putih dulu
-        tombolKMH.color = warnaNormal;
-        tombolMPH.color = warnaNormal;
-
-        // 2. Warnai biru pada tombol yang sesuai dengan string di PlayerPrefs
-        if (unit == "KMH")
-        {
-            tombolKMH.color = warnaPilih;
-        }
-        else if (unit == "MPH")
-        {
-            tombolMPH.color = warnaPilih;
-        }
+        tombolKMH.color = (unit == "KMH") ? warnaPilih : warnaNormal;
+        tombolMPH.color = (unit == "MPH") ? warnaPilih : warnaNormal;
     }
 }

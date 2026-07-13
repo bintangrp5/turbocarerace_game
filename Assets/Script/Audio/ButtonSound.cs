@@ -1,12 +1,14 @@
 using UnityEngine;
-using UnityEngine.UI; // Tambahan wajib agar Unity mengenali komponen Slider
+using UnityEngine.UI;
 
 public class ButtonSound : MonoBehaviour
 {
     public AudioSource audioSource;
-    public AudioClip clickSound;
     
-    // Tambahkan variabel ini untuk menghubungkan slider dari Inspector
+    // Siapkan 2 slot untuk efek suara tombol yang berbeda
+    public AudioClip suaraTombol1; 
+    public AudioClip suaraTombol2; 
+    
     public Slider sliderSuara; 
 
     [Range(0f, 1f)]
@@ -17,7 +19,6 @@ public class ButtonSound : MonoBehaviour
         // 1. Cek apakah ada volume yang tersimpan di memori perangkat
         if (PlayerPrefs.HasKey("SimpanVolume"))
         {
-            // Jika ada, timpa nilai default dengan nilai yang tersimpan
             volume = PlayerPrefs.GetFloat("SimpanVolume"); 
         }
 
@@ -34,12 +35,22 @@ public class ButtonSound : MonoBehaviour
         }
     }
 
-    public void PlaySound()
+    // Fungsi untuk memutar efek suara tombol pertama
+    public void PlaySound1()
     {
-        if (audioSource != null && clickSound != null)
+        if (audioSource != null && suaraTombol1 != null)
         {
-            audioSource.clip = clickSound;
-            audioSource.Play();
+            // PlayOneShot membuat suara tidak terpotong jika tombol dipencet cepat
+            audioSource.PlayOneShot(suaraTombol1);
+        }
+    }
+
+    // Fungsi untuk memutar efek suara tombol kedua
+    public void PlaySound2()
+    {
+        if (audioSource != null && suaraTombol2 != null)
+        {
+            audioSource.PlayOneShot(suaraTombol2);
         }
     }
 
