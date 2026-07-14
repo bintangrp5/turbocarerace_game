@@ -63,4 +63,9 @@ public class CarStatus : MonoBehaviour
             GameManager.Instance.TriggerGameOver("GAMEO OVER!");
         }
     }
+
+    public float GetHealthPercent()
+    {
+        return (float)RemainingHits / maxCollisions;
+    }
 }

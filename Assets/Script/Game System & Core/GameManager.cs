@@ -3,7 +3,8 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
 using TMPro;
-using System.Linq; // Tambahkan ini untuk sorting
+using System.Linq;
+using System.Collections;
 
 public enum TimerMode
 {
@@ -11,13 +12,25 @@ public enum TimerMode
     CountDown
 }
 
+
+public enum GameMode
+{
+    Race,
+    Survival
+}
+
 public class GameManager : MonoBehaviour
 {
     public CarController car;
     public GameObject panelPause;
+    [SerializeField] private CinemachineDistanceSetup cameraDistanceSetup;    
+
+    [Header("Game Mode")]
+    [SerializeField] private GameMode gameMode;
     public static GameManager Instance { get; private set; }
 
     private float timeElapsed = 0f;
+    private float lastScoreTime = 0f;
 
     [Header("Game Flow")]
     // Hapus totalCheckpoints, kita hitung otomatis
@@ -65,8 +78,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TMP_Text hudScoreText;      
     [SerializeField] private TMP_Text gameOverScoreText;  
     [SerializeField] private TMP_Text victoryScoreText;  
-   
-    
+
+    [SerializeField] public float BoostSpeedValue = 0f;   
+
     private CarStatus playerCarStatus;
     private Rigidbody playerRigidbody;
 
@@ -82,36 +96,59 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private void ConfigureGameMode()
+    {
+        switch (gameMode)
+        {
+            case GameMode.Race:
+                totalLaps = 3;
+                timerMode = TimerMode.CountUp;
+                break;
+
+            case GameMode.Survival:
+                totalLaps = 1;
+                timerMode = TimerMode.CountDown;
+                initialTimeLimit = 180f;
+                break;
+        }
+    }
+
     private void Start()
     {
+        ConfigureGameMode();
+
         Time.timeScale = 1f;
 
-        if (panelPause != null) panelPause.SetActive(false);
-        
+        if (panelPause != null)
+            panelPause.SetActive(false);
+
         timeElapsed = 0f;
         timeRemaining = initialTimeLimit;
         isGameActive = false;
         currentLap = 1;
 
-        if (timerText != null) originalTimerTextColor = timerText.color;
+        if (timerText != null)
+            originalTimerTextColor = timerText.color;
 
         playerCarStatus = FindObjectOfType<CarStatus>();
-        if (playerCarStatus != null)
-        {
-            playerRigidbody = playerCarStatus.GetComponent<Rigidbody>();
-        }
 
-        if (gameOverPanel != null) gameOverPanel.SetActive(false);
-        if (victoryPanel != null) victoryPanel.SetActive(false);
+        if (playerCarStatus != null)
+            playerRigidbody = playerCarStatus.GetComponent<Rigidbody>();
+
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(false);
+
+        if (victoryPanel != null)
+            victoryPanel.SetActive(false);
 
         SetupButtons();
 
-        // Cari SEMUA checkpoint di scene (termasuk yang tidak aktif)
-        allCheckpoints = FindObjectsByType<Checkpoint>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        
-        // Setup checkpoint untuk lap 1
+        allCheckpoints = FindObjectsByType<Checkpoint>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
         SetupLapCheckpoints();
-        
+
         UpdateUIHUD();
     }
     
@@ -210,57 +247,81 @@ public class GameManager : MonoBehaviour
         int index = cp.CheckpointIndex;
 
         // GARIS FINISH (LAP)
-        if (cp.IsFinishLine) 
+        if (cp.IsFinishLine)
         {
             if (mandatoryCheckpointsPassedThisLap >= activeMandatoryCheckpoints)
             {
                 if (currentLap < totalLaps)
                 {
                     currentLap++;
-                    SetupLapCheckpoints(); 
+
+                    SetupLapCheckpoints();
+
                     Debug.Log($"[GameManager] Lap {currentLap} Dimulai!");
                 }
                 else
                 {
-                    // JIKA INI LAP TERAKHIR, AKTIFKAN FINAL GOAL
-                    Debug.Log("[GameManager] Lap Terakhir Selesai! Menuju Checkpoint Final!");
-                    if (finalGoalCheckpoint != null) finalGoalCheckpoint.gameObject.SetActive(true);
+                    Debug.Log("[GameManager] Semua Lap Selesai!");
+
+                    StartCoroutine(FinishRace());
                 }
             }
             else
             {
-                cp.ResetCheckpoint(); 
-            }
-            return; 
-        }
+                Debug.Log("[GameManager] Checkpoint wajib belum lengkap!");
 
-        // CHECKPOINT FINAL (VICTORY)
-        if (cp == finalGoalCheckpoint)
-        {
-            Debug.Log("[GameManager] Final Goal Terlewati! Menang!");
-            TriggerVictory();
+                cp.ResetCheckpoint();
+            }
+
             return;
         }
+
+        // // CHECKPOINT FINAL (VICTORY)
+        // if (cp == finalGoalCheckpoint)
+        // {
+        //     Debug.Log("[GameManager] Final Goal Terlewati! Menang!");
+        //     TriggerVictory();
+        //     return;
+        // }
 
         // CHECKPOINT BIASA & WAJIB
         if (index <= currentCheckpointIndex) return;
         currentCheckpointIndex = index; 
 
-        AddScore(scorePerCheckpoint);
-        if (timerMode == TimerMode.CountDown) timeRemaining += timeBonusPerCheckpoint;
-
+        // LOGIKA BARU:
         if (cp.IsMandatory)
         {
+            // Jika Mandatory (Sector), HANYA tambah progres, TANPA skor dan TANPA boost
             mandatoryCheckpointsPassedThisLap++;
+            Debug.Log($"[GameManager] Sector dilewati! Progres: {mandatoryCheckpointsPassedThisLap}");
+        }
+        else
+        {
+            // Jika BUKAN Mandatory, berikan skor dan bonus kecepatan
+            AddScore(scorePerCheckpoint);
+            
+            if (timerMode == TimerMode.CountDown) 
+                timeRemaining += timeBonusPerCheckpoint;
+            
+            // Boost speed hanya untuk checkpoint biasa
+            CarController car = FindFirstObjectByType<CarController>();
+            if (car != null) car.BoostSpeed(cp.boostSpeedValue); 
         }
     }
-    
+
     public void AddScore(int amount)
     {
         if (!isGameActive) return;
+
+        // Jika AddScore dipanggil lagi dalam waktu kurang dari 0.5 detik, abaikan
+        if (Time.time - lastScoreTime < 0.5f) return; 
+
+        lastScoreTime = Time.time; // Update waktu terakhir dipanggil
+
+        Debug.Log($"AddScore dipanggil! Amount: {amount} | Current Score: {score}");
+
         score += amount;
         
-        // Update semua teks skor yang ada
         if (hudScoreText != null) hudScoreText.text = $"Skor: {score}";
         if (gameOverScoreText != null) gameOverScoreText.text = $"Skor Akhir: {score}";
         if (victoryScoreText != null) victoryScoreText.text = $"Skor Akhir: {score}";
@@ -269,23 +330,20 @@ public class GameManager : MonoBehaviour
     public void TriggerGameOver(string message)
     {
         if (!isGameActive) return;
+
         isGameActive = false;
 
-        // 1. Munculkan panel
-        if (gameOverPanel != null) gameOverPanel.SetActive(true);
-        
-        // 2. Set pesan (misal: "Waktu Habis!")
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(true);
+
         if (gameOverMessageText != null)
-        
-        // 3. Set skor akhir ke UI Game Over
+            gameOverMessageText.text = message;
+
         if (gameOverScoreText != null)
-        {
             gameOverScoreText.text = $"Skor Akhir: {score}";
-        }
 
-        Time.timeScale = 0f; 
+        Time.timeScale = 0f;
     }
-
     public void TriggerVictory()
     {
         if (!isGameActive) return;
@@ -321,13 +379,32 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private IEnumerator FinishRace()
+    {
+        Debug.Log("[GameManager] Balapan Selesai!");
+
+        CarController car = FindFirstObjectByType<CarController>();
+
+        if (car != null)
+            car.StopCar();
+
+        yield return new WaitForSeconds(2f);
+
+        TriggerVictory();
+    }
+
     private void UpdateUIHUD()
     {
         if (playerCarStatus != null && healthSlider != null)
-        {
-            healthSlider.maxValue = playerCarStatus.MaxCollisions;
-            healthSlider.value = playerCarStatus.RemainingHits;
-        }
+    {
+        healthSlider.maxValue = playerCarStatus.MaxCollisions;
+        healthSlider.value = playerCarStatus.RemainingHits;
+
+        Image fill = healthSlider.fillRect.GetComponent<Image>();
+
+        float t = (float)playerCarStatus.RemainingHits / playerCarStatus.MaxCollisions;
+        fill.color = Color.Lerp(Color.red, Color.green, t);
+    }
 
         if (timerText != null)
         {
@@ -383,8 +460,12 @@ public class GameManager : MonoBehaviour
         panelPause.SetActive(false);
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
-    }
 
+        Debug.Log($"ResumeGame dipanggil. car={car}, cameraDistanceSetup={cameraDistanceSetup}");
+
+        if (car != null) car.ApplySettingsFromPrefs();
+        if (cameraDistanceSetup != null) cameraDistanceSetup.ApplySettingsFromPrefs();
+    }
     public void RestartRace()
     {
         Time.timeScale = 1f;

@@ -4,23 +4,18 @@ using UnityEngine.UI;
 public class PengaturMusikUI : MonoBehaviour
 {
     public Slider sliderMusik;
-    public AudioClip musikSceneIni; // Masukkan lagu .mp3 untuk scene ini di Inspector
+    public AudioClip musikSceneIni; // Lagu khusus scene ini
 
     void Start()
     {
-        // 1. Sesuaikan posisi tuas slider dengan memori
-        if (PlayerPrefs.HasKey("SimpanVolumeMusik"))
+        // 1. Sinkronkan slider dari MusicManager (sumber kebenaran tunggal)
+        if (MusicManager.instance != null && sliderMusik != null)
         {
-            if (sliderMusik != null)
-                sliderMusik.value = PlayerPrefs.GetFloat("SimpanVolumeMusik");
-        }
-        else
-        {
-            if (sliderMusik != null)
-                sliderMusik.value = 1f;
+            // SetValueWithoutNotify agar tidak memicu OnValueChanged saat inisialisasi
+            sliderMusik.SetValueWithoutNotify(MusicManager.instance.audioSource.volume);
         }
 
-        // 2. Putar musik khusus untuk scene ini
+        // 2. Putar musik khusus scene ini
         if (MusicManager.instance != null && musikSceneIni != null)
         {
             MusicManager.instance.PlayMusic(musikSceneIni);

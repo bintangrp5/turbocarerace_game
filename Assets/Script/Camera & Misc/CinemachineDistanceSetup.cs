@@ -1,5 +1,5 @@
 using UnityEngine;
-using Unity.Cinemachine; // Wajib untuk Cinemachine 3
+using Unity.Cinemachine;
 
 public class CinemachineDistanceSetup : MonoBehaviour
 {
@@ -12,27 +12,30 @@ public class CinemachineDistanceSetup : MonoBehaviour
 
     void Start()
     {
-        // Ambil komponen kamera Cinemachine yang ada di objek ini
         freeLookCam = GetComponent<CinemachineCamera>();
+        ApplySettingsFromPrefs();
+    }
 
-        // Baca data yang disimpan oleh SettingKontrol di Main Menu
-        // Kuncinya ("camera_mode") HARUS SAMA PERSIS dengan yang ada di SettingKontrol
-        int mode = PlayerPrefs.GetInt("camera_mode", 1); 
+    // Bisa dipanggil kapan saja untuk re-sync jarak kamera dari PlayerPrefs
+    public void ApplySettingsFromPrefs()
+    {
+        if (freeLookCam == null) freeLookCam = GetComponent<CinemachineCamera>();
 
-        // Terapkan pengaturan kamera sesuai angka yang disimpan
+        int mode = PlayerPrefs.GetInt("camera_mode", 1);
+
         switch (mode)
         {
             case 0:
                 freeLookCam.Lens.FieldOfView = fovDekat;
-                Debug.Log("Game dimulai: Menerapkan Kamera Dekat");
+                Debug.Log("Menerapkan Kamera Dekat");
                 break;
             case 1:
                 freeLookCam.Lens.FieldOfView = fovSedang;
-                Debug.Log("Game dimulai: Menerapkan Kamera Sedang");
+                Debug.Log("Menerapkan Kamera Sedang");
                 break;
             case 2:
                 freeLookCam.Lens.FieldOfView = fovJauh;
-                Debug.Log("Game dimulai: Menerapkan Kamera Jauh");
+                Debug.Log("Menerapkan Kamera Jauh");
                 break;
         }
     }

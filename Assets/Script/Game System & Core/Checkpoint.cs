@@ -10,18 +10,18 @@ public class Checkpoint : MonoBehaviour
     public int TargetLap => targetLap;
 
     [SerializeField] private Color activeColor = Color.green;
-    [SerializeField] private float boostSpeedValue = 15f; 
+    [SerializeField] public float boostSpeedValue = 15f;
 
     [Header("Behavior Settings")]
     [SerializeField] private bool hideOnPassed = true; 
     
-    // ✅ FITUR BARU: Checkpoint yang wajib dilewati agar lap sah
     [Tooltip("Centang jika ini checkpoint wajib (seperti di pertengahan sirkuit)")]
     [SerializeField] private bool isMandatory = false;
     public bool IsMandatory => isMandatory;
 
     [Tooltip("Centang HANYA pada checkpoint terakhir (Garis Finish) penentu ganti lap")]
     [SerializeField] private bool isFinishLine = false; 
+
     public bool IsFinishLine => isFinishLine;
 
     private bool isTriggered = false;
@@ -41,34 +41,23 @@ public class Checkpoint : MonoBehaviour
     {
         if (isTriggered) return;
 
+        if (!other.CompareTag("Player")) return; 
+
         CarController car = other.GetComponentInParent<CarController>();
-        
-        if (other.CompareTag("Player") || car != null)
+        if (car != null)
         {
             isTriggered = true;
             
-            // 1. Sembunyikan DULU sebelum melapor
             if (hideOnPassed)
             {
                 gameObject.SetActive(false); 
             }
-            else
-            {
-                if (meshRenderer != null)
-                {
-                    meshRenderer.material.color = activeColor; 
-                }
-            }
+            
+            car.BoostSpeed(boostSpeedValue);
 
-            if (car != null)
-            {
-                car.BoostSpeed(boostSpeedValue);
-            }
-
-            // 2. BARU laporkan ke GameManager
             if (GameManager.Instance != null)
             {
-                GameManager.Instance.OnCheckpointPassed(this); 
+                GameManager.Instance.OnCheckpointPassed(this); // Mengirim 'this' adalah benar
             }
         }
     }

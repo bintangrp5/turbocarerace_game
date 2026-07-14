@@ -51,16 +51,23 @@ public class CarController : MonoBehaviour
     private void Start()
     {
         carStatus = GetComponent<CarStatus>();
-        rb = GetComponent<Rigidbody>(); // Ini sudah ada di kode aslimu
-        playerRigidbody = rb; // Karena 'rb' dan 'playerRigidbody' adalah komponen yang sama
+        rb = GetComponent<Rigidbody>();
+        playerRigidbody = rb;
 
         if (rb != null) rb.centerOfMass = centerOfMassOffset;
 
         ResetInput();
 
+        ApplySettingsFromPrefs();
+    }
+
+    public void ApplySettingsFromPrefs()
+    {
         int kontrol = PlayerPrefs.GetInt("kontrol", 0);
         isAutoDrive = (kontrol != 0);
-        
+
+        if (isAutoDrive) autoStart = true;
+
         if (pedalGas != null) pedalGas.SetActive(!isAutoDrive);
         if (isAutoDrive) Debug.Log("Mode Otomatis Aktif");
     }
@@ -226,7 +233,6 @@ public class CarController : MonoBehaviour
             rb.angularVelocity = Vector3.zero;
         }
         
-        // Matikan suara mesin jika ada (opsional)
     }
 
     // Input UI Methods

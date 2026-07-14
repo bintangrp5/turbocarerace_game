@@ -26,31 +26,25 @@ public class RaceCountdown : MonoBehaviour
         countdownText.gameObject.SetActive(true);
 
         countdownText.text = "3";
-        yield return new WaitForSecondsRealtime(1f);
+        yield return new WaitForSeconds(1f);
 
         countdownText.text = "2";
-        yield return new WaitForSecondsRealtime(1f);
+        yield return new WaitForSeconds(1f);
 
         countdownText.text = "1";
-        yield return new WaitForSecondsRealtime(1f);
+        yield return new WaitForSeconds(1f);
 
         countdownText.text = "GO!";
         Debug.Log("GO!");
 
         carController.canDrive = true;
-        Debug.Log("canDrive = " + carController.canDrive);
 
         if (GameManager.Instance != null)
         {
-            Debug.Log("StartRace Dipanggil");
             GameManager.Instance.StartRace();
         }
-        else
-        {
-            Debug.LogError("GameManager Instance NULL");
-        }
 
-        yield return new WaitForSecondsRealtime(1f);
+        yield return new WaitForSeconds(1f);
 
         countdownText.gameObject.SetActive(false);
     }
